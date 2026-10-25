@@ -197,7 +197,13 @@ impl<T: Transport> Chip<T> {
             reg,
             dir: Dir::Write,
         };
-        self.send(access, &bytes[..len])?;
+        match self.send(access, &bytes[..len]) {
+            Err(error) if error.is_stall() => {
+                self.read_demod(page, reg)?;
+                self.send(access, &bytes[..len])?;
+            }
+            outcome => outcome?,
+        }
         self.read_demod(QUIRK_PAGE, QUIRK_REG).ok();
         Ok(())
     }
@@ -275,12 +281,117 @@ fn pin_bit(pin: u8) -> Result<u8> {
 
 #[cfg(test)]
 mod tests {
+    use std::{cell::RefCell, collections::VecDeque};
+
+    use nusb::transfer::TransferError;
+
     use super::*;
     use crate::dongle::fake::{Fake, Transfer};
 
     fn chip() -> (Chip<Fake>, Fake) {
         let fake = Fake::default();
         (Chip::new(fake.clone()), fake)
+    }
+
+    struct ControlScript {
+        fake: Fake,
+        writes: RefCell<VecDeque<Result<(), TransferError>>>,
+        reads: RefCell<VecDeque<Result<(), TransferError>>>,
+    }
+
+    impl Transport for ControlScript {
+        fn read(&self, value: u16, index: u16, len: u16) -> Result<Vec<u8>, TransferError> {
+            let bytes = self.fake.read(value, index, len)?;
+            self.reads.borrow_mut().pop_front().unwrap_or(Ok(()))?;
+            Ok(bytes)
+        }
+
+        fn write(&self, value: u16, index: u16, data: &[u8]) -> Result<(), TransferError> {
+            self.fake.write(value, index, data)?;
+            self.writes.borrow_mut().pop_front().unwrap_or(Ok(()))
+        }
+    }
+
+    fn scripted(
+        writes: &[Result<(), TransferError>],
+        reads: &[Result<(), TransferError>],
+    ) -> (Chip<ControlScript>, Fake) {
+        let fake = Fake::default();
+        let chip = Chip::new(ControlScript {
+            fake: fake.clone(),
+            writes: RefCell::new(writes.iter().copied().collect()),
+            reads: RefCell::new(reads.iter().copied().collect()),
+        });
+        (chip, fake)
+    }
+
+    #[test]
+    fn a_stalled_demod_write_reads_its_register_before_retrying() {
+        for value in [Value::Byte(0x18), Value::Word(0x0300)] {
+            let (chip, fake) = scripted(&[Err(TransferError::Stall), Ok(())], &[]);
+            chip.write_demod(1, 0x9f, value).unwrap();
+            let (bytes, len) = value.wire();
+            assert_eq!(
+                fake.transfers(),
+                [
+                    Transfer::write(0x9f20, 0x0011, &bytes[..len]),
+                    Transfer::read(0x9f20, 0x0001, 1),
+                    Transfer::write(0x9f20, 0x0011, &bytes[..len]),
+                    Transfer::read(0x0120, 0x000a, 1),
+                ]
+            );
+        }
+    }
+
+    #[test]
+    fn a_persistent_demod_stall_surfaces_after_one_recovery_read() {
+        let (chip, fake) = scripted(&[Err(TransferError::Stall); 2], &[]);
+        let error = chip.demod(1, 0x01, 0x18).unwrap_err();
+        assert!(matches!(
+            error,
+            Error::Control {
+                access: Access::Demod {
+                    dir: Dir::Write,
+                    ..
+                },
+                source: TransferError::Stall,
+            }
+        ));
+        assert_eq!(fake.transfers().len(), 3);
+    }
+
+    #[test]
+    fn a_failed_recovery_read_surfaces_without_another_write() {
+        for source in [TransferError::Stall, TransferError::Disconnected] {
+            let (chip, fake) = scripted(&[Err(TransferError::Stall)], &[Err(source)]);
+            let error = chip.demod(1, 0x01, 0x18).unwrap_err();
+            assert!(matches!(
+                error,
+                Error::Control {
+                    access: Access::Demod { dir: Dir::Read, .. },
+                    source: got,
+                } if got == source
+            ));
+            assert_eq!(fake.transfers().len(), 2);
+        }
+    }
+
+    #[test]
+    fn other_demod_errors_are_not_retried() {
+        for source in [
+            TransferError::Cancelled,
+            TransferError::Disconnected,
+            TransferError::Fault,
+            TransferError::InvalidArgument,
+            TransferError::Unknown(42),
+        ] {
+            let (chip, fake) = scripted(&[Err(source)], &[]);
+            assert!(matches!(
+                chip.demod(1, 0x01, 0x18),
+                Err(Error::Control { source: got, .. }) if got == source
+            ));
+            assert_eq!(fake.transfers().len(), 1);
+        }
     }
 
     #[test]

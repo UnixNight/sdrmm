@@ -1,6 +1,8 @@
 use std::time::{Duration, Instant};
 
+use sdrmm_device::{CaptureRadio, SdrDevice};
 use sdrmm_usb_stream::RxStream;
+use sdrmm_wire::{AgcSetting, DeviceSettings};
 
 use super::{
     catalog::{Catalog, Listing},
@@ -311,4 +313,60 @@ fn hardware_tunes_and_reads_live_samples() {
     check_live_samples(&mut dongle, "433.92 MHz 49.6 dB", true);
     check_direct_sampling(&mut dongle);
     check_live_samples(&mut dongle, "100 MHz after direct sampling", true);
+}
+
+fn drain_live(stream: &RxStream, seconds: u64) -> u64 {
+    let stop = Instant::now() + Duration::from_secs(seconds);
+    let mut bytes = 0;
+    while Instant::now() < stop {
+        if let Ok(block) = stream.recv_timeout(Duration::from_millis(200)) {
+            bytes += block.len() as u64;
+        }
+        assert!(stream.error().is_none(), "{:?}", stream.error());
+    }
+    assert!(
+        bytes >= 1 << 20,
+        "capture stopped delivering samples: {bytes}"
+    );
+    bytes
+}
+
+#[test]
+#[ignore = "needs an idle RTL-SDR; changes settings during capture"]
+fn hardware_settings_during_capture() {
+    let dongle = first_dongle();
+    println!("tuner={:?} board={:?}", dongle.tuner_kind(), dongle.board());
+    let mut device = crate::RtlSdrDevice::from_dongle(dongle).expect("device");
+    let mut stream = device.radio.arm().expect("capture");
+    println!("warmup bytes={}", drain_live(&stream, 6));
+    for center in [101_000_000, 433_920_000, 100_000_000] {
+        for delta in [
+            DeviceSettings {
+                center_hz: Some(f64::from(center)),
+                ..DeviceSettings::default()
+            },
+            DeviceSettings {
+                agc: Some(AgcSetting::switched(false)),
+                ..DeviceSettings::default()
+            },
+            DeviceSettings {
+                agc: Some(AgcSetting::switched(true)),
+                ..DeviceSettings::default()
+            },
+        ] {
+            let applied = device.apply(&delta);
+            println!("delta={delta:?} result={applied:?}");
+            applied.expect("live settings");
+            if let Some(center) = delta.center_hz {
+                assert_eq!(device.settings().center_hz, Some(center));
+            }
+            if let Some(agc) = delta.agc {
+                assert_eq!(device.settings().agc, Some(agc));
+            }
+            println!("live bytes={}", drain_live(&stream, 1));
+        }
+    }
+    let stats = stream.stop();
+    device.radio.disarm();
+    println!("capture stats={stats:?}");
 }
