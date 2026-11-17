@@ -51,6 +51,7 @@ import { FaceFault } from "./face/Fault";
 import { Readout, Readouts } from "./face/Readouts";
 import { formatHz } from "./format";
 import { Icon } from "./Icon";
+import { PRIMEX_ERRORS, primexReadings } from "./primex";
 import { Unit } from "./Unit";
 import {
   celsius,
@@ -990,6 +991,30 @@ function BroadcastView({ scope }: { scope: DecoderScope }) {
   );
 }
 
+function PrimexView({ scope }: { scope: DecoderScope }) {
+  const records = recordsInScope(useDecodedKind("primex"), scope);
+  const frames = records.map((record) => record.event.data);
+  const readings = primexReadings(frames);
+  const error = frames[0]?.error;
+  return (
+    <Readouts>
+      <Readout
+        label="Local time"
+        title="Last valid transmitter-local time. Timezone is not transmitted."
+      >
+        {readings.time ?? "Waiting"}
+      </Readout>
+      <Readout label="Control">{readings.control ?? "Waiting"}</Readout>
+      <Readout label="Station ID">{readings.station ?? "Waiting"}</Readout>
+      {error != null && (
+        <Readout label="Error" tone="warn">
+          {PRIMEX_ERRORS[error]}
+        </Readout>
+      )}
+    </Readouts>
+  );
+}
+
 const VIEWS: Record<DecoderKind, ((scope: DecoderScope) => ReactNode) | null> = {
   transmission: null,
   call: null,
@@ -1017,6 +1042,7 @@ const VIEWS: Record<DecoderKind, ((scope: DecoderScope) => ReactNode) | null> = 
   broadcast: (scope) => <BroadcastView scope={scope} />,
   broadcast_data: (scope) => <BroadcastView scope={scope} />,
   radio_clock: null,
+  primex: (scope) => <PrimexView scope={scope} />,
   gnss: null,
   sstv: (scope) => <PicturesView source="sstv" scope={scope} />,
   apt: (scope) => <PicturesView source="apt" scope={scope} />,

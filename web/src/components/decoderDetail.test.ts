@@ -188,6 +188,16 @@ describe("eventDetail", () => {
           symbols: "M000",
         },
       },
+      primex: {
+        kind: "primex",
+        data: {
+          message_type: 129,
+          length: 10,
+          bytes: [129, 10, 1, 5, 28, 5, 5, 17, 5, 205],
+          checksum_ok: true,
+          time: { year: 2017, month: 5, day: 5, hour: 1, minute: 5, second: 28, weekday: 5 },
+        },
+      },
       gnss: {
         kind: "gnss",
         data: {

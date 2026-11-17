@@ -10975,6 +10975,24 @@
             ],
             "properties": {
               "settings": {
+                "$ref": "#/components/schemas/PrimexParams"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "primex"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "settings",
+              "type"
+            ],
+            "properties": {
+              "settings": {
                 "$ref": "#/components/schemas/GnssParams"
               },
               "type": {
@@ -13761,6 +13779,24 @@
                 "type": "string",
                 "enum": [
                   "radio_clock"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "data",
+              "kind"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/PrimexFrame"
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "primex"
                 ]
               }
             }
@@ -22803,6 +22839,151 @@
             }
           },
           "version": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          }
+        }
+      },
+      "PrimexError": {
+        "type": "string",
+        "enum": [
+          "checksum",
+          "invalid_time",
+          "manchester",
+          "timing",
+          "truncated"
+        ]
+      },
+      "PrimexFrame": {
+        "type": "object",
+        "required": [
+          "message_type",
+          "length",
+          "bytes",
+          "checksum_ok"
+        ],
+        "properties": {
+          "bytes": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0
+            }
+          },
+          "checksum_ok": {
+            "type": "boolean"
+          },
+          "error": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/PrimexError"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "length": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "message_number": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "minimum": 0
+          },
+          "message_type": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "station_id": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0
+            }
+          },
+          "time": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/PrimexTime"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "PrimexParams": {
+        "type": "object",
+        "properties": {
+          "bandwidth_hz": {
+            "type": "number",
+            "format": "double",
+            "default": 20000.0
+          },
+          "baud": {
+            "type": "number",
+            "format": "double",
+            "default": 1024.0
+          }
+        }
+      },
+      "PrimexTime": {
+        "type": "object",
+        "required": [
+          "year",
+          "month",
+          "day",
+          "hour",
+          "minute",
+          "second",
+          "weekday"
+        ],
+        "properties": {
+          "day": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "hour": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "minute": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "month": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "second": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "weekday": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "year": {
             "type": "integer",
             "format": "int32",
             "minimum": 0

@@ -42,6 +42,7 @@ pub mod passive_radar;
 mod pocsag;
 pub mod polarimeter;
 pub mod pose_clock;
+mod primex;
 mod psk;
 mod radio_clock;
 mod radiosonde;
@@ -108,6 +109,7 @@ pub use navtex::NavtexChannel;
 pub use nfm::{NfmChannel, NfmTx};
 use num_complex::Complex;
 pub use pocsag::PocsagChannel;
+pub use primex::PrimexChannel;
 pub use psk::PskChannel;
 pub use radio_clock::RadioClockChannel;
 pub use radiosonde::RadiosondeChannel;
@@ -192,6 +194,7 @@ pub fn occupied_band(params: &ChannelParams) -> (f64, f64) {
         ChannelParams::Freedv(p) => dv::freedv::occupied_band(p),
         ChannelParams::Ident(p) => ident::occupied_band(p),
         ChannelParams::RadioClock(_) => radio_clock::occupied_band(),
+        ChannelParams::Primex(p) => primex::occupied_band(p),
         ChannelParams::Gnss(_) => gnss::occupied_band(),
         ChannelParams::Vor(_) => vor::occupied_band(),
         ChannelParams::Ils(_) => ils::occupied_band(),
@@ -274,6 +277,7 @@ pub fn channel_filter(params: &ChannelParams) -> Result<ChannelFilter, ChannelEr
         ChannelParams::Freedv(p) => dv::freedv::channel_filter(p),
         ChannelParams::Ident(p) => ident::channel_filter(p),
         ChannelParams::RadioClock(_) => Ok(radio_clock::channel_filter()),
+        ChannelParams::Primex(p) => primex::channel_filter(p),
         ChannelParams::Gnss(_) => Ok(gnss::channel_filter()),
         ChannelParams::Vor(_) => Ok(vor::channel_filter()),
         ChannelParams::Ils(_) => Ok(ils::channel_filter()),
@@ -604,6 +608,11 @@ const REGISTRY: &[Registration] = &[
         create_tx: None,
     },
     Registration {
+        descriptor: PrimexChannel::descriptor,
+        create: boxed::<PrimexChannel>,
+        create_tx: None,
+    },
+    Registration {
         descriptor: GnssChannel::descriptor,
         create: boxed::<GnssChannel>,
         create_tx: None,
@@ -778,9 +787,9 @@ mod tests {
         DrmParams, DscParams, DstarParams, ErmesParams, FlexParams, FreeDvParams, GnssParams,
         HfdlParams, IdentParams, IlsParams, InmarsatAeroParams, InmarsatStdcParams, IridiumParams,
         LrptParams, M17Params, MorseParams, NavtexParams, NfmParams, NxdnParams, P25Params,
-        PocsagParams, PskParams, RadioClockParams, RadiosondeParams, RttyParams, SelcallParams,
-        SsbParams, SstvParams, Vdl2Params, VorParams, WefaxParams, WfmParams, WsjtParams,
-        WsprParams, YsfParams,
+        PocsagParams, PrimexParams, PskParams, RadioClockParams, RadiosondeParams, RttyParams,
+        SelcallParams, SsbParams, SstvParams, Vdl2Params, VorParams, WefaxParams, WfmParams,
+        WsjtParams, WsprParams, YsfParams,
     };
 
     use super::*;
@@ -824,6 +833,7 @@ mod tests {
             "freedv" => ChannelParams::Freedv(FreeDvParams::default()),
             "ident" => ChannelParams::Ident(IdentParams::default()),
             "radio_clock" => ChannelParams::RadioClock(RadioClockParams::default()),
+            "primex" => ChannelParams::Primex(PrimexParams::default()),
             "gnss" => ChannelParams::Gnss(GnssParams::default()),
             "vor" => ChannelParams::Vor(VorParams::default()),
             "ils" => ChannelParams::Ils(IlsParams::default()),
@@ -886,7 +896,7 @@ mod tests {
     #[test]
     fn descriptors_are_unique_and_complete() {
         let all = descriptors();
-        assert_eq!(all.len(), 50);
+        assert_eq!(all.len(), 51);
         let ids: HashSet<&str> = all.iter().map(|d| d.type_id.as_str()).collect();
         assert_eq!(
             ids,
@@ -927,6 +937,7 @@ mod tests {
                 "wspr",
                 "ident",
                 "radio_clock",
+                "primex",
                 "gnss",
                 "vor",
                 "ils",
@@ -974,6 +985,7 @@ mod tests {
                 "freedv" => (1_400.0, 8_000.0),
                 "ident" => (192_000.0, 240_000.0),
                 "radio_clock" => (200.0, 2_000.0),
+                "primex" => (20_000.0, 48_000.0),
                 "gnss" => (2_046_000.0, 2_048_000.0),
                 "vor" => (24_000.0, 48_000.0),
                 "ils" => (20_000.0, 48_000.0),
@@ -1019,6 +1031,7 @@ mod tests {
                         | "dpmr"
                         | "m17"
                         | "freedv"
+                        | "primex"
                 ),
                 "{} audio flag does not match its mode class",
                 d.type_id

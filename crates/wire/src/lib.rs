@@ -77,8 +77,8 @@ pub use channel::{
     MIN_IDENT_BANDWIDTH_HZ, MIN_IDENT_INTERVAL_MS, MIN_IDENT_THRESHOLD_DB, MIN_NAVAID_REPORT_MS,
     MIN_SQUELCH_AUTO_MARGIN_DB, MorseParams, NavtexParams, NfmParams, NfmScramblerMode,
     NfmToneMode, NxdnBandwidth, NxdnParams, P25Params, ParamLimit, PocsagBaud, PocsagParams,
-    PskBaud, PskParams, RETIRED_CHANNEL_TYPES, RadioClockParams, RadioClockStandard, RttyParams,
-    RttyStopBits, SelcallParams, SelcallSystem, Sideband, Squelch, SsbParams, SstvMode,
+    PrimexParams, PskBaud, PskParams, RETIRED_CHANNEL_TYPES, RadioClockParams, RadioClockStandard,
+    RttyParams, RttyStopBits, SelcallParams, SelcallSystem, Sideband, Squelch, SsbParams, SstvMode,
     SstvModulation, SstvParams, Vdl2Params, VorParams, WfmParams, WsjtParams, WsprParams,
     YsfParams, home_frequency_hz, param_limits, retired_channel_type,
 };
@@ -101,9 +101,9 @@ pub use decode::{
     DectSecurity, DectSide, DectUpdate, DvChannelDefinition, DvFrame, DvFrameKind, DvMode,
     DvSlotActivity, DvTrunkProtocol, ErmesMessage, FlexMessage, GnssFrame, IdentFeatures,
     IdentReport, IdentSignal, IlsReading, Modulation, MorseText, NO_CHANNEL, NavtexMessage,
-    PagerPayload, PocsagMessage, PocsagPayload, ProtocolMatch, PskText, RadioClockFrame, RdsUpdate,
-    RttyText, ScramblerStatus, SelcallSequence, SstvPicture, SuperframeStatus, ToneSquelchStatus,
-    Vendor, VorReading, WsjtMessage, WsprSpot,
+    PagerPayload, PocsagMessage, PocsagPayload, PrimexError, PrimexFrame, PrimexTime,
+    ProtocolMatch, PskText, RadioClockFrame, RdsUpdate, RttyText, ScramblerStatus, SelcallSequence,
+    SstvPicture, SuperframeStatus, ToneSquelchStatus, Vendor, VorReading, WsjtMessage, WsprSpot,
 };
 pub use device::{
     Agc, AgcGain, AgcReach, AgcSetting, ArgumentInfo, ArgumentOption, ArgumentType,
@@ -778,7 +778,7 @@ mod contract_tests {
     fn decoder_params_default_from_empty_settings() {
         use channel::{
             AcarsParams, AdsbParams, AisParams, AprsParams, DabParams, DatvParams, DrmParams,
-            GnssParams, MorseParams, NavtexParams, PocsagParams, PskBaud, PskParams,
+            GnssParams, MorseParams, NavtexParams, PocsagParams, PrimexParams, PskBaud, PskParams,
             RadioClockParams, RttyParams, WsjtParams, WsprParams,
         };
         for (json, expected) in [
@@ -856,6 +856,10 @@ mod contract_tests {
             (
                 r#"{"type":"radio_clock","settings":{}}"#,
                 ChannelParams::RadioClock(RadioClockParams::default()),
+            ),
+            (
+                r#"{"type":"primex","settings":{}}"#,
+                ChannelParams::Primex(PrimexParams::default()),
             ),
             (
                 r#"{"type":"gnss","settings":{}}"#,

@@ -22,6 +22,7 @@ import {
 } from "./decoderViews";
 import { DECT_CIPHER_LABELS } from "./eventFacts";
 import { formatHz } from "./format";
+import { PRIMEX_ERRORS, primexBytes, primexStation, primexTime } from "./primex";
 import { SSTV_MODE_LABELS } from "./sstvModes";
 import {
   aprsWeatherRows,
@@ -435,6 +436,18 @@ const DETAIL: {
     body: r.symbols || null,
   }),
 
+  primex: (frame) => ({
+    fields: fields([
+      ["Station ID", primexStation(frame)],
+      ["Message", String(frame.message_type)],
+      ["Local time", primexTime(frame.time)],
+      ["Weekday", frame.time == null ? undefined : String(frame.time.weekday)],
+      ["Control", frame.message_number == null ? undefined : String(frame.message_number)],
+      ["Checksum", frame.checksum_ok ? "valid" : "failed"],
+      ["Error", frame.error == null ? undefined : PRIMEX_ERRORS[frame.error]],
+    ]),
+    body: primexBytes(frame),
+  }),
   gnss: (g) => ({
     fields: fields([
       ["Signal", `GPS L1 C/A PRN ${g.prn}`],

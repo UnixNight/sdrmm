@@ -14,7 +14,7 @@ covers the modes that need more than a frequency.
 | Aviation | ADS-B (1090ES), ACARS, VDL Mode 2, High Frequency Data Link | [Inmarsat Classic Aero](#inmarsat-and-iridium) | VOR, ILS localizer / glideslope |
 | Marine | AIS, NAVTEX, Digital Selective Calling | Inmarsat STD-C / EGC | |
 | Amateur and HF | CW skimmer, FT8, FT4, WSPR, RTTY, Morse (CW), PSK, APRS / AX.25 with [weather](#aprs-weather) | | |
-| Paging and telemetry | POCSAG, FLEX pager, Selcall (CCIR/ZVEI), Radio clock (DCF77 / WWVB / MSF / JJY) | ERMES pager | |
+| Paging and telemetry | POCSAG, FLEX pager, Selcall (CCIR/ZVEI), Radio clock (DCF77 / WWVB / MSF / JJY), [Primex](#primex) | ERMES pager | |
 | Pictures and video | [SSTV](#sstv) | ATV | |
 | Weather and satellites | [WEFAX](#wefax), [NOAA APT, Meteor LRPT](#weather-satellites), [Radiosonde](#radiosondes) | | |
 | Broadcast digital | [DAB / DAB+](#dab-and-dab), [DRM30](#drm) | [DRM+](#drm) | [DVB-T/T2, DATV (DVB-S / S2)](#dvb) |
@@ -68,6 +68,16 @@ radio running at that sample rate, using the middle 80%.
 Some German POCSAG networks send umlauts as `{ | } [ \ ] ~`. SDR-- converts them inside
 lowercase words only: `M}nchen` becomes `München`, `Stra~e` becomes `Straße`. `[ALARM]` and
 all-caps messages stay as sent.
+
+## Primex
+
+**Primex time sync** reads time and control messages on 72–73 MHz. Start with **BW 20 kHz**
+and **Baud 1024**. Polarity is automatic. Time stays as transmitted, without a timezone.
+Morse station IDs appear on subsequent messages and in **Readout**.
+
+Wire `events` to **Readout** or **Decoder log**, and `audio` to **Speaker** to hear the signal.
+Checksum and timing failures appear in the log. The 467 MHz Innovation Wireless protocol is
+not supported.
 
 ## SSTV
 

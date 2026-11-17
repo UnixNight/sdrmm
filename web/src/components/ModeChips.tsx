@@ -130,6 +130,8 @@ export function ModeChips({
       return <NavtexChips params={params} {...mode} />;
     case "radio_clock":
       return <RadioClockChips params={params} {...mode} />;
+    case "primex":
+      return <PrimexChips params={params} {...mode} />;
     case "gnss":
       return <GnssChips params={params} {...mode} />;
     case "vor":
@@ -646,6 +648,29 @@ function RadioClockChips({ params, onParams }: Mode<"radio_clock">) {
       <InvertChip
         on={settings.invert ?? false}
         onChange={(invert) => onParams({ type: "radio_clock", settings: { ...settings, invert } })}
+      />
+    </>
+  );
+}
+
+function PrimexChips({ params, limits, onParams }: Mode<"primex">) {
+  const settings = params.settings;
+  return (
+    <>
+      <BandwidthChip
+        valueHz={settings.bandwidth_hz ?? 20_000}
+        optionsHz={[12_500, 20_000, 25_000]}
+        onCommit={(bandwidth_hz) =>
+          onParams({ type: "primex", settings: { ...settings, bandwidth_hz } })
+        }
+      />
+      <PresetChip
+        label="Baud"
+        title="Data bits per second, before Manchester encoding. Polarity is automatic."
+        value={settings.baud ?? 1_024}
+        presets={[1_000, 1_024, 2_000].map((value) => ({ value, label: String(value) }))}
+        limit={limitOf(limits, "baud")}
+        onCommit={(baud) => onParams({ type: "primex", settings: { ...settings, baud } })}
       />
     </>
   );

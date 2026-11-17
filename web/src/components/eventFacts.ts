@@ -8,6 +8,7 @@ import {
   modulationLabel,
 } from "./decoderViews";
 import { formatHz } from "./format";
+import { primexStation, primexSummary } from "./primex";
 import { SSTV_MODE_LABELS } from "./sstvModes";
 import {
   AVHRR_LABELS,
@@ -265,6 +266,8 @@ export function eventSummary(event: DecoderEvent): string {
       const r = event.data;
       return join([r.standard.toUpperCase(), r.datetime, r.leap_warning ? "leap warning" : null]);
     }
+    case "primex":
+      return primexSummary(event.data);
     case "gnss": {
       const g = event.data;
       return join([
@@ -428,6 +431,8 @@ export function eventStation(event: DecoderEvent): string | null {
       return event.data.callsign;
     case "radio_clock":
       return event.data.standard.toUpperCase();
+    case "primex":
+      return primexStation(event.data) ?? "Primex";
     case "gnss":
       return `GPS-${event.data.prn}`;
     case "vor":

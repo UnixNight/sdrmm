@@ -822,6 +822,65 @@ pub struct RadioClockFrame {
     pub symbols: String,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+pub struct PrimexTime {
+    pub year: u16,
+    pub month: u8,
+    pub day: u8,
+    pub hour: u8,
+    pub minute: u8,
+    pub second: u8,
+    pub weekday: u8,
+}
+
+impl std::fmt::Display for PrimexTime {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{:04}-{:02}-{:02} {:02}:{:02}:{:02}",
+            self.year, self.month, self.day, self.hour, self.minute, self.second
+        )
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum PrimexError {
+    Checksum,
+    InvalidTime,
+    Manchester,
+    Timing,
+    Truncated,
+}
+
+impl std::fmt::Display for PrimexError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            Self::Checksum => "Checksum failed",
+            Self::InvalidTime => "Invalid time",
+            Self::Manchester => "Manchester error",
+            Self::Timing => "Timing lost",
+            Self::Truncated => "Truncated",
+        })
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+pub struct PrimexFrame {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub station_id: Option<[u8; 16]>,
+    pub message_type: u8,
+    pub length: u8,
+    pub bytes: [u8; 10],
+    pub checksum_ok: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub time: Option<PrimexTime>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub message_number: Option<u8>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub error: Option<PrimexError>,
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, ToSchema)]
 pub struct GnssFrame {
     pub prn: u8,
@@ -1179,6 +1238,7 @@ pub enum DecoderEvent {
     Broadcast(BroadcastStatus),
     BroadcastData(BroadcastData),
     RadioClock(RadioClockFrame),
+    Primex(PrimexFrame),
     Gnss(GnssFrame),
     Sstv(SstvPicture),
     Vor(VorReading),
@@ -1419,6 +1479,7 @@ impl DecoderEvent {
             Self::Broadcast(_) => "broadcast",
             Self::BroadcastData(_) => "broadcast_data",
             Self::RadioClock(_) => "radio_clock",
+            Self::Primex(_) => "primex",
             Self::Gnss(_) => "gnss",
             Self::Sstv(_) => "sstv",
             Self::Vor(_) => "vor",
@@ -1595,6 +1656,16 @@ impl DecoderEvent {
                 parts.join(" · ")
             }
             Self::Gnss(g) => gnss_summary(g),
+            Self::Primex(frame) => match frame.error {
+                Some(error) => format!("Primex {} · {error}", frame.message_type),
+                None => match frame.time {
+                    Some(time) => format!("Primex · {time}"),
+                    None => frame.message_number.map_or_else(
+                        || "Primex control".to_owned(),
+                        |number| format!("Primex control {number}"),
+                    ),
+                },
+            },
             Self::Sstv(p) => {
                 let mut parts = vec![
                     p.mode.label().to_owned(),
@@ -1710,6 +1781,16 @@ impl DecoderEvent {
                 .map(|id| format!("{id:X}")),
             Self::Gnss(g) => Some(format!("GPS-{}", g.prn)),
             Self::RadioClock(r) => Some(format!("{:?}", r.standard).to_uppercase()),
+            Self::Primex(frame) => Some(
+                frame
+                    .station_id
+                    .as_ref()
+                    .and_then(|bytes| std::str::from_utf8(bytes).ok())
+                    .map(|text| text.trim_end_matches('\0'))
+                    .filter(|text| !text.is_empty())
+                    .unwrap_or("Primex")
+                    .to_owned(),
+            ),
             Self::Sstv(p) => Some(p.mode.label().to_owned()),
             Self::Vor(v) => v.station.clone(),
             Self::Df(b) => b.station_id.clone(),
@@ -1969,6 +2050,74 @@ mod tests {
             lon: None,
             icao: Some("3C6444".to_owned()),
         }
+    }
+
+    #[test]
+    fn primex_events_roundtrip_local_time_control_zero_and_errors() {
+        let time = PrimexTime {
+            year: 2017,
+            month: 5,
+            day: 5,
+            hour: 1,
+            minute: 5,
+            second: 28,
+            weekday: 5,
+        };
+        let frame = PrimexFrame {
+            station_id: None,
+            message_type: 129,
+            length: 10,
+            bytes: [129, 10, 1, 5, 28, 5, 5, 17, 5, 205],
+            checksum_ok: true,
+            time: Some(time),
+            message_number: None,
+            error: None,
+        };
+        let event = DecoderEvent::Primex(frame);
+        assert_eq!(event.kind(), "primex");
+        assert_eq!(event.station(), Some("Primex".to_owned()));
+        assert_eq!(event.summary(), "Primex · 2017-05-05 01:05:28");
+        let mut station_id = [0; 16];
+        station_id[..6].copy_from_slice(b"VFK777");
+        let identified = DecoderEvent::Primex(PrimexFrame {
+            station_id: Some(station_id),
+            ..frame
+        });
+        assert_eq!(identified.station(), Some("VFK777".to_owned()));
+        let encoded = serde_json::to_string(&identified).unwrap();
+        assert_eq!(
+            serde_json::from_str::<DecoderEvent>(&encoded).unwrap(),
+            identified
+        );
+        for variant in [
+            frame,
+            PrimexFrame {
+                time: None,
+                message_type: 131,
+                message_number: Some(0),
+                ..frame
+            },
+            PrimexFrame {
+                time: None,
+                checksum_ok: false,
+                error: Some(PrimexError::Checksum),
+                ..frame
+            },
+        ] {
+            let event = DecoderEvent::Primex(variant);
+            let json = serde_json::to_value(&event).unwrap();
+            assert_eq!(json["data"]["bytes"].as_array().unwrap().len(), 10);
+            assert_eq!(serde_json::from_value::<DecoderEvent>(json).unwrap(), event);
+        }
+        assert_eq!(
+            DecoderEvent::Primex(PrimexFrame {
+                time: None,
+                message_number: Some(0),
+                ..frame
+            })
+            .summary(),
+            "Primex control 0"
+        );
     }
 
     fn bearing() -> crate::fusion::DfBearing {

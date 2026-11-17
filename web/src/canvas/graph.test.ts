@@ -136,6 +136,14 @@ const CATALOG: PatchCatalog = {
 
 const TYPES: ChannelDescriptor[] = [
   {
+    type_id: "primex",
+    name: "Primex time sync",
+    bandwidth_hz: 20_000,
+    input_rate_hz: 48_000,
+    has_audio: true,
+    decoder_kind: "primex",
+  },
+  {
     type_id: "nfm",
     name: "NFM",
     bandwidth_hz: 12_500,
@@ -237,6 +245,20 @@ describe("handleSignature", () => {
 });
 
 describe("ports", () => {
+  it("exposes Primex audio and events with a visible Speaker wire", () => {
+    const primex = node("primex", { kind: "channel", data: { channel_type: "primex" } });
+    const graph = { ...workspace(), nodes: [...workspace().nodes, primex] };
+    expect(portsOf(context, graph, primex).map((p) => p.name)).toEqual([
+      "iq",
+      "control",
+      "audio",
+      "events",
+    ]);
+    expect(
+      connectionRefusal(context, graph, port("primex", "audio"), port("spk", "audio")),
+    ).toBeNull();
+  });
+
   it("resolves a channel's conditional outputs against its type", () => {
     const graph = workspace();
     const nfm = graph.nodes[2];

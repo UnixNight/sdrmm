@@ -117,6 +117,13 @@ static TABLE: &[(u16, &str)] = &[
 
 const UNKNOWN: &str = "*";
 
+pub(crate) fn decode_pattern(pattern: u16) -> Option<&'static str> {
+    TABLE
+        .iter()
+        .find(|(key, _)| *key == pattern)
+        .map(|(_, text)| *text)
+}
+
 #[derive(Clone, Copy)]
 struct Run {
     on: bool,
@@ -323,10 +330,7 @@ impl MorseChannel {
         let decoded = if self.overflow {
             UNKNOWN
         } else {
-            TABLE
-                .iter()
-                .find(|(c, _)| *c == self.pattern)
-                .map_or(UNKNOWN, |(_, s)| *s)
+            decode_pattern(self.pattern).unwrap_or(UNKNOWN)
         };
         if self.pending_space {
             self.text.push(' ');

@@ -3143,6 +3143,10 @@ export interface components {
             /** @enum {string} */
             type: "radio_clock";
         } | {
+            settings: components["schemas"]["PrimexParams"];
+            /** @enum {string} */
+            type: "primex";
+        } | {
             settings: components["schemas"]["GnssParams"];
             /** @enum {string} */
             type: "gnss";
@@ -3899,6 +3903,10 @@ export interface components {
             data: components["schemas"]["RadioClockFrame"];
             /** @enum {string} */
             kind: "radio_clock";
+        } | {
+            data: components["schemas"]["PrimexFrame"];
+            /** @enum {string} */
+            kind: "primex";
         } | {
             data: components["schemas"]["GnssFrame"];
             /** @enum {string} */
@@ -6360,6 +6368,49 @@ export interface components {
             devices?: components["schemas"]["PresetDevice"][];
             /** Format: int32 */
             version: number;
+        };
+        /** @enum {string} */
+        PrimexError: "checksum" | "invalid_time" | "manchester" | "timing" | "truncated";
+        PrimexFrame: {
+            bytes: number[];
+            checksum_ok: boolean;
+            error?: components["schemas"]["PrimexError"] | null;
+            /** Format: int32 */
+            length: number;
+            /** Format: int32 */
+            message_number?: number | null;
+            /** Format: int32 */
+            message_type: number;
+            station_id?: number[] | null;
+            time?: components["schemas"]["PrimexTime"] | null;
+        };
+        PrimexParams: {
+            /**
+             * Format: double
+             * @default 20000
+             */
+            bandwidth_hz: number;
+            /**
+             * Format: double
+             * @default 1024
+             */
+            baud: number;
+        };
+        PrimexTime: {
+            /** Format: int32 */
+            day: number;
+            /** Format: int32 */
+            hour: number;
+            /** Format: int32 */
+            minute: number;
+            /** Format: int32 */
+            month: number;
+            /** Format: int32 */
+            second: number;
+            /** Format: int32 */
+            weekday: number;
+            /** Format: int32 */
+            year: number;
         };
         /** @enum {string} */
         ProcessorGate: "sync" | "phase" | "gain" | "calibrating" | "retuning" | "tier" | "tuning_mode";

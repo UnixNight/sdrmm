@@ -114,6 +114,10 @@ pub fn param_limits(type_id: &str) -> Vec<ParamLimit> {
             limit("doppler_hz", 500.0, 20_000.0, 500.0),
             limit("threshold", 1.5, 100.0, 0.1),
         ],
+        "primex" => vec![
+            limit("bandwidth_hz", 10_000.0, 40_000.0, 500.0),
+            limit("baud", 900.0, 2_100.0, 1.0),
+        ],
         "vor" => vec![
             limit("station_lat", -90.0, 90.0, 0.00001),
             limit("station_lon", -180.0, 180.0, 0.00001),
@@ -1315,6 +1319,22 @@ pub struct RadioClockParams {
     pub invert: bool,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, ToSchema)]
+#[serde(default)]
+pub struct PrimexParams {
+    pub bandwidth_hz: f64,
+    pub baud: f64,
+}
+
+impl Default for PrimexParams {
+    fn default() -> Self {
+        Self {
+            bandwidth_hz: 20_000.0,
+            baud: 1_024.0,
+        }
+    }
+}
+
 fn default_gnss_prn() -> u8 {
     1
 }
@@ -1567,6 +1587,7 @@ pub enum ChannelParams {
     Freedv(FreeDvParams),
     Ident(IdentParams),
     RadioClock(RadioClockParams),
+    Primex(PrimexParams),
     Gnss(GnssParams),
     Vor(VorParams),
     Ils(IlsParams),
@@ -1623,6 +1644,7 @@ impl ChannelParams {
             Self::Freedv(_) => "freedv",
             Self::Ident(_) => "ident",
             Self::RadioClock(_) => "radio_clock",
+            Self::Primex(_) => "primex",
             Self::Gnss(_) => "gnss",
             Self::Vor(_) => "vor",
             Self::Ils(_) => "ils",

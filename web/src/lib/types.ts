@@ -113,6 +113,7 @@ export type RttyText = components["schemas"]["RttyText"];
 export type MorseText = components["schemas"]["MorseText"];
 export type CwSkimmerSpot = components["schemas"]["CwSkimmerSpot"];
 export type RadioClockFrame = components["schemas"]["RadioClockFrame"];
+export type PrimexFrame = components["schemas"]["PrimexFrame"];
 export type GnssFrame = components["schemas"]["GnssFrame"];
 export type VorReading = components["schemas"]["VorReading"];
 export type IlsReading = components["schemas"]["IlsReading"];
